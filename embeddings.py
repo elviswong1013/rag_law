@@ -1,13 +1,31 @@
-from typing import List
+from typing import List, Optional
 from openai import OpenAI
 import numpy as np
 
 
 class OpenAIEmbeddings:
-    def __init__(self, api_key: str, model: str = "text-embedding-3-small") -> None:
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "text-embedding-3-small",
+        base_url: Optional[str] = None,
+        auth_header: Optional[str] = None,
+        auth_scheme: Optional[str] = None
+    ) -> None:
         self.api_key: str = api_key
         self.model: str = model
-        self.client: OpenAI = OpenAI(api_key=api_key)
+        
+        client_kwargs = {"api_key": api_key}
+        
+        if base_url:
+            client_kwargs["base_url"] = base_url.rstrip('/') + "/"
+        
+        if auth_header and auth_scheme:
+            client_kwargs["default_headers"] = {
+                auth_header: f"{auth_scheme} {api_key}"
+            }
+        
+        self.client: OpenAI = OpenAI(**client_kwargs)
     
     def embed_text(self, text: str) -> List[float]:
         response = self.client.embeddings.create(

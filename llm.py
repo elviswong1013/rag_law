@@ -3,10 +3,28 @@ from openai import OpenAI
 
 
 class OpenAILLM:
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini") -> None:
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "gpt-4o-mini",
+        base_url: Optional[str] = None,
+        auth_header: Optional[str] = None,
+        auth_scheme: Optional[str] = None
+    ) -> None:
         self.api_key: str = api_key
         self.model: str = model
-        self.client: OpenAI = OpenAI(api_key=api_key)
+        
+        client_kwargs = {"api_key": api_key}
+        
+        if base_url:
+            client_kwargs["base_url"] = base_url.rstrip('/') + "/"
+        
+        if auth_header and auth_scheme:
+            client_kwargs["default_headers"] = {
+                auth_header: f"{auth_scheme} {api_key}"
+            }
+        
+        self.client: OpenAI = OpenAI(**client_kwargs)
     
     def generate(
         self,

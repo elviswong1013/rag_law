@@ -2,6 +2,12 @@ from typing import Dict, Any, Optional
 from dataclasses import dataclass
 import yaml
 import os
+from dotenv import load_dotenv
+
+
+llm_settings_path = os.path.join(os.path.dirname(__file__), 'llm_settings.env')
+if os.path.exists(llm_settings_path):
+    load_dotenv(llm_settings_path)
 
 
 @dataclass
@@ -11,6 +17,10 @@ class LLMConfig:
     max_tokens: int = 2000
     top_p: float = 0.8
     api_key: Optional[str] = None
+    provider: str = "openai"
+    api_base: Optional[str] = None
+    auth_header: str = "Authorization"
+    auth_scheme: str = "Bearer"
 
 
 @dataclass
@@ -95,16 +105,20 @@ class PipelineConfig:
     def from_env(cls) -> 'PipelineConfig':
         return cls(
             llm=LLMConfig(
-                model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                model=os.getenv("LLM_MODEL", os.getenv("OPENAI_MODEL", "gpt-4o-mini")),
                 temperature=float(os.getenv("LLM_TEMPERATURE", "0.7")),
                 max_tokens=int(os.getenv("LLM_MAX_TOKENS", "2000")),
                 top_p=float(os.getenv("LLM_TOP_P", "0.8")),
-                api_key=os.getenv("OPENAI_API_KEY")
+                api_key=os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY")),
+                provider=os.getenv("LLM_PROVIDER", "openai"),
+                api_base=os.getenv("LLM_API_BASE"),
+                auth_header=os.getenv("LLM_AUTH_HEADER", "Authorization"),
+                auth_scheme=os.getenv("LLM_AUTH_SCHEME", "Bearer")
             ),
             embedding=EmbeddingConfig(
                 model=os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
                 batch_size=int(os.getenv("EMBEDDING_BATCH_SIZE", "25")),
-                api_key=os.getenv("OPENAI_API_KEY")
+                api_key=os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY"))
             ),
             reranker=RerankerConfig(
                 method=os.getenv("RERANKER_METHOD", "hybrid"),

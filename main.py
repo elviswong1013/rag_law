@@ -7,31 +7,51 @@ from vector_store import VectorStore
 from reranker import Reranker
 from llm import OpenAILLM
 from agentic_rag import AgenticRAG
+from config import PipelineConfig
 from tqdm import tqdm
+import gc
 
 
 class RAGSystem:
     def __init__(self, config: dict = None) -> None:
-        load_dotenv()
+        llm_settings_path = os.path.join(os.path.dirname(__file__), 'llm_settings.env')
+        if os.path.exists(llm_settings_path):
+            load_dotenv(llm_settings_path)
+        else:
+            load_dotenv()
         
-        self.config: dict = config or self._load_config()
+        self.config: PipelineConfig = PipelineConfig.from_env()
         
-        self.api_key: str = os.getenv("OPENAI_API_KEY")
-        if not self.api_key:
-            raise ValueError("OPENAI_API_KEY not found in environment variables")
+        llm_cfg = self.config.llm
+        embed_cfg = self.config.embedding
         
-        self.chunk_size: int = int(os.getenv("CHUNK_SIZE", 512))
-        self.chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", 50))
-        self.top_k: int = int(os.getenv("TOP_K_RETRIEVAL", 10))
-        self.rerank_top_k: int = int(os.getenv("RERANK_TOP_K", 5))
-        self.embedding_model: str = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
-        self.llm_model: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-        self.db_path: str = os.getenv("CHROMA_DB_PATH", "./chroma_db")
+        if not llm_cfg.api_key:
+            raise ValueError("LLM_API_KEY not found in environment variables")
         
-        self.embeddings: OpenAIEmbeddings = OpenAIEmbeddings(self.api_key, self.embedding_model)
+        self.chunk_size: int = self.config.chunking.chunk_size
+        self.chunk_overlap: int = self.config.chunking.chunk_overlap
+        self.top_k: int = self.config.retrieval.top_k
+        self.rerank_top_k: int = self.config.reranker.top_k
+        self.embedding_model: str = embed_cfg.model
+        self.llm_model: str = llm_cfg.model
+        self.db_path: str = self.config.vector_db.persist_directory
+        
+        self.embeddings: OpenAIEmbeddings = OpenAIEmbeddings(
+            api_key=llm_cfg.api_key,
+            model=self.embedding_model,
+            base_url=llm_cfg.api_base,
+            auth_header=llm_cfg.auth_header,
+            auth_scheme=llm_cfg.auth_scheme
+        )
         self.vector_store: VectorStore = VectorStore(self.db_path)
-        self.reranker: Reranker = Reranker(method="hybrid")
-        self.llm: OpenAILLM = OpenAILLM(self.api_key, self.llm_model)
+        self.reranker: Reranker = Reranker(method=self.config.reranker.method)
+        self.llm: OpenAILLM = OpenAILLM(
+            api_key=llm_cfg.api_key,
+            model=self.llm_model,
+            base_url=llm_cfg.api_base,
+            auth_header=llm_cfg.auth_header,
+            auth_scheme=llm_cfg.auth_scheme
+        )
         
         self.document_loader: DocumentLoader = DocumentLoader()
         self.text_chunker: TextChunker = TextChunker(self.chunk_size, self.chunk_overlap)
@@ -80,20 +100,28 @@ class RAGSystem:
         chunks: list = self.text_chunker.chunk_documents(documents, method='paragraph')
         print(f"Created {len(chunks)} chunks.")
         
-        print("Generating embeddings...")
-        texts: list = [chunk.content for chunk in chunks]
-        embeddings: list = []
+        print("Generating embeddings and saving to vector store...")
         
-        batch_size: int = 25
-        for i in tqdm(range(0, len(texts), batch_size), desc="Processing batches"):
-            batch: list = texts[i:i + batch_size]
-            batch_embeddings: list = self.embeddings.embed_documents(batch)
-            embeddings.extend(batch_embeddings)
+        BATCH_SIZE: int = 25
+        SAVE_BATCH: int = 500
         
-        print("Adding documents to vector store...")
-        self.vector_store.add_documents(chunks, embeddings)
+        for i in tqdm(range(0, len(chunks), BATCH_SIZE), desc="Processing"):
+            batch_chunks: list = chunks[i:i + BATCH_SIZE]
+            batch_texts: list = [chunk.content for chunk in batch_chunks]
+            
+            batch_embeddings: list = self.embeddings.embed_documents(batch_texts)
+            self.vector_store.add_documents(batch_chunks, batch_embeddings)
+            
+            del batch_texts
+            del batch_embeddings
+            
+            if (i + BATCH_SIZE) % SAVE_BATCH == 0:
+                gc.collect()
         
-        print(f"Vector database built successfully with {len(chunks)} documents.")
+        del chunks
+        gc.collect()
+        
+        print(f"Vector database built successfully.")
     
     def query(self, question: str, max_searches: int = 2) -> dict:
         result: dict = self.agentic_rag.query(question, max_searches)

@@ -23,7 +23,7 @@ class DocumentLoader:
         return text.strip()
     
     def load_excel_file(self, file_path: str) -> str:
-        df: pd.DataFrame = pd.read_excel(file_path)
+        df: pd.DataFrame = pd.read_excel(file_path, engine='openpyxl')
         return df.to_string(index=False)
     
     def load_file(self, file_path: str) -> Dict[str, Any]:

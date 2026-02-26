@@ -1,5 +1,6 @@
 from typing import List, Dict, Any
 import re
+import gc
 from dataclasses import dataclass
 
 
@@ -11,13 +12,22 @@ class DocumentChunk:
 
 
 class TextChunker:
+    MAX_CHUNK_SIZE: int = 1500
+    
     def __init__(self, chunk_size: int = 512, chunk_overlap: int = 50) -> None:
-        self.chunk_size: int = chunk_size
-        self.chunk_overlap: int = chunk_overlap
+        self.chunk_size: int = min(chunk_size, self.MAX_CHUNK_SIZE)
+        self.chunk_overlap: int = min(chunk_overlap, self.chunk_size // 2)
     
     def chunk_by_size(self, text: str, metadata: Dict[str, Any]) -> List[DocumentChunk]:
         chunks: List[DocumentChunk] = []
+        
+        if not text or not text.strip():
+            return chunks
+            
         words: List[str] = text.split()
+        
+        if not words:
+            return chunks
         
         start_idx: int = 0
         chunk_num: int = 0
@@ -40,6 +50,9 @@ class TextChunker:
             
             start_idx = end_idx - self.chunk_overlap
             chunk_num += 1
+            
+            if chunk_num > 10000:
+                break
         
         return chunks
     
@@ -101,7 +114,7 @@ class TextChunker:
     def chunk_documents(self, documents: List[Dict[str, Any]], method: str = 'paragraph') -> List[DocumentChunk]:
         all_chunks: List[DocumentChunk] = []
         
-        for doc in documents:
+        for i, doc in enumerate(documents):
             content: str = doc['content']
             metadata: Dict[str, Any] = doc['metadata']
             metadata['file_path'] = doc['file_path']
@@ -115,5 +128,8 @@ class TextChunker:
                 raise ValueError(f"Unknown chunking method: {method}")
             
             all_chunks.extend(chunks)
+            
+            if i > 0 and i % 50 == 0:
+                gc.collect()
         
         return all_chunks
