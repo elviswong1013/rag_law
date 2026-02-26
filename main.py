@@ -102,7 +102,7 @@ class RAGSystem:
         
         print("Generating embeddings and saving to vector store...")
         
-        BATCH_SIZE: int = 25
+        BATCH_SIZE: int = 10
         SAVE_BATCH: int = 500
         
         for i in tqdm(range(0, len(chunks), BATCH_SIZE), desc="Processing"):

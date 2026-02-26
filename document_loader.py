@@ -37,7 +37,11 @@ class DocumentLoader:
         elif file_ext == '.pdf':
             content: str = self.load_pdf_file(file_path)
         elif file_ext in ['.xlsx', '.xls']:
-            content: str = self.load_excel_file(file_path)
+            try:
+                content: str = self.load_excel_file(file_path)
+            except Exception as e:
+                print(f"Error loading Excel file {file_path}: {e}")
+                content = f"Error loading file: {file_path}"
         else:
             raise ValueError(f"Unsupported file type: {file_ext}")
         

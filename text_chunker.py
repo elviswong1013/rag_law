@@ -13,9 +13,11 @@ class DocumentChunk:
 
 class TextChunker:
     MAX_CHUNK_SIZE: int = 1500
+    MIN_CHUNK_SIZE: int = 20
+    MAX_CHUNKS_PER_DOC: int = 1000
     
     def __init__(self, chunk_size: int = 512, chunk_overlap: int = 50) -> None:
-        self.chunk_size: int = min(chunk_size, self.MAX_CHUNK_SIZE)
+        self.chunk_size: int = min(max(chunk_size, self.MIN_CHUNK_SIZE), self.MAX_CHUNK_SIZE)
         self.chunk_overlap: int = min(chunk_overlap, self.chunk_size // 2)
     
     def chunk_by_size(self, text: str, metadata: Dict[str, Any]) -> List[DocumentChunk]:
@@ -28,6 +30,18 @@ class TextChunker:
         
         if not words:
             return chunks
+        
+        if len(words) < self.MIN_CHUNK_SIZE:
+            chunk: DocumentChunk = DocumentChunk(
+                content=text,
+                metadata={
+                    **metadata,
+                    'chunk_index': 0,
+                    'chunk_type': 'size_based'
+                },
+                chunk_id=f"{metadata.get('filename', 'unknown')}_0"
+            )
+            return [chunk]
         
         start_idx: int = 0
         chunk_num: int = 0
@@ -120,12 +134,21 @@ class TextChunker:
             metadata['file_path'] = doc['file_path']
             metadata['file_type'] = doc['file_type']
             
+            original_len: int = len(content)
+            if original_len > 100000:
+                content = content[:100000]
+                metadata['truncated'] = True
+            
             if method == 'size':
                 chunks: List[DocumentChunk] = self.chunk_by_size(content, metadata)
             elif method == 'paragraph':
                 chunks: List[DocumentChunk] = self.chunk_by_paragraph(content, metadata)
             else:
                 raise ValueError(f"Unknown chunking method: {method}")
+            
+            if len(chunks) > self.MAX_CHUNKS_PER_DOC:
+                chunks = chunks[:self.MAX_CHUNKS_PER_DOC]
+                metadata['truncated'] = True
             
             all_chunks.extend(chunks)
             
