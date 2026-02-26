@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 import re
 import gc
+import uuid
 from dataclasses import dataclass
 
 
@@ -9,6 +10,12 @@ class DocumentChunk:
     content: str
     metadata: Dict[str, Any]
     chunk_id: str
+
+
+def _generate_chunk_id(metadata: Dict[str, Any], chunk_num: int) -> str:
+    file_path: str = metadata.get('file_path', metadata.get('filename', 'unknown'))
+    unique_suffix: str = str(uuid.uuid4())[:8]
+    return f"{file_path}_{chunk_num}_{unique_suffix}"
 
 
 class TextChunker:
@@ -39,7 +46,7 @@ class TextChunker:
                     'chunk_index': 0,
                     'chunk_type': 'size_based'
                 },
-                chunk_id=f"{metadata.get('filename', 'unknown')}_0"
+                chunk_id=_generate_chunk_id(metadata, 0)
             )
             return [chunk]
         
@@ -58,7 +65,7 @@ class TextChunker:
                     'chunk_index': chunk_num,
                     'chunk_type': 'size_based'
                 },
-                chunk_id=f"{metadata.get('filename', 'unknown')}_{chunk_num}"
+                chunk_id=_generate_chunk_id(metadata, chunk_num)
             )
             chunks.append(chunk)
             
@@ -95,7 +102,7 @@ class TextChunker:
                             'chunk_index': chunk_num,
                             'chunk_type': 'paragraph_based'
                         },
-                        chunk_id=f"{metadata.get('filename', 'unknown')}_{chunk_num}"
+                        chunk_id=_generate_chunk_id(metadata, chunk_num)
                     )
                     chunks.append(chunk)
                     chunk_num += 1
@@ -104,7 +111,7 @@ class TextChunker:
                     sub_chunks: List[DocumentChunk] = self.chunk_by_size(para, metadata)
                     for sub_chunk in sub_chunks:
                         sub_chunk.metadata['chunk_type'] = 'paragraph_subchunk'
-                        sub_chunk.chunk_id = f"{metadata.get('filename', 'unknown')}_{chunk_num}"
+                        sub_chunk.chunk_id = _generate_chunk_id(metadata, chunk_num)
                         chunks.append(sub_chunk)
                         chunk_num += 1
                     current_chunk = ""
@@ -119,7 +126,7 @@ class TextChunker:
                     'chunk_index': chunk_num,
                     'chunk_type': 'paragraph_based'
                 },
-                chunk_id=f"{metadata.get('filename', 'unknown')}_{chunk_num}"
+                chunk_id=_generate_chunk_id(metadata, chunk_num)
             )
             chunks.append(chunk)
         
