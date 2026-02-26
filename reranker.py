@@ -60,6 +60,8 @@ class Reranker:
         model_name: str = "ms-marco-MiniLM-L-6-v2",
         top_k: int = 5
     ) -> List[Dict[str, Any]]:
+        from sentence_transformers import CrossEncoder
+        
         if self.cross_encoder is None:
             self.cross_encoder = CrossEncoder(model_name)
         
@@ -79,17 +81,20 @@ class Reranker:
         top_k: int = 5,
         model: str = "rerank-multilingual-v3.0"
     ) -> List[Dict[str, Any]]:
+        import cohere
+        
         if not self.cohere_api_key:
             raise ValueError("Cohere API key is required for Cohere reranking")
         
-        co = cohere.Client(self.cohere_api_key)
+        if self._cohere_client is None:
+            self._cohere_client = cohere.Client(self.cohere_api_key)
         
         documents = [
             {"text": result['content']}
             for result in results
         ]
         
-        response = co.rerank(
+        response = self._cohere_client.rerank(
             model=model,
             query=query,
             documents=documents,
