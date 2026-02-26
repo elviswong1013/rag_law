@@ -1,0 +1,145 @@
+# RAG System Configuration Template
+# Copy this file to config.yaml and modify as needed
+
+# LLM Configuration
+llm:
+  model: gpt-4o-mini
+  temperature: 0.7
+  max_tokens: 2000
+  top_p: 0.8
+  api_key: null
+
+# Embedding Model Configuration
+embedding:
+  model: text-embedding-3-small
+  batch_size: 25
+  api_key: null
+
+# Reranker Configuration
+reranker:
+  method: hybrid
+  top_k: 5
+  use_bm25: true
+  use_cross_encoder: false
+  cohere_api_key: null
+
+# Vector Database Configuration
+vector_db:
+  persist_directory: ./chroma_db
+  collection_name: law_documents
+  distance_metric: cosine
+
+# Text Chunking Configuration
+chunking:
+  chunk_size: 512
+  chunk_overlap: 50
+  method: paragraph
+
+# Retrieval Configuration
+retrieval:
+  top_k: 10
+  score_threshold: 0.7
+  max_searches: 2
+
+# Evaluation Configuration
+evaluation:
+  use_llm_judge: true
+  judge_model: gpt-4o-mini
+  evaluation_metrics:
+    - relevance
+    - accuracy
+    - completeness
+    - clarity
+
+# =====================================
+# Detailed Field Descriptions
+# =====================================
+
+# LLM Configuration (llm)
+# ------------------------
+# model: LLM model to use (e.g., gpt-4o, gpt-4o-mini, gpt-3.5-turbo)
+# temperature: Controls randomness (0.0-1.0, lower = more deterministic)
+# max_tokens: Maximum tokens in generated response
+# top_p: Nucleus sampling parameter (0.0-1.0)
+# api_key: Override API key (defaults to environment variable OPENAI_API_KEY)
+
+# Embedding Configuration (embedding)
+# -----------------------------------
+# model: Embedding model (e.g., text-embedding-3-small, text-embedding-3-large, text-embedding-ada-002)
+# batch_size: Number of texts to process in one batch
+# api_key: Override API key (defaults to environment variable OPENAI_API_KEY)
+
+# Reranker Configuration (reranker)
+# ----------------------------------
+# method: Reranking method (score, bm25, cross_encoder, cohere, hybrid)
+# top_k: Number of documents to keep after reranking
+# use_bm25: Use BM25 reranking in hybrid mode (true/false)
+# use_cross_encoder: Use Cross-Encoder in hybrid mode (true/false)
+# cohere_api_key: Cohere API key for Cohere reranking
+
+# Vector Database Configuration (vector_db)
+# -----------------------------------------
+# persist_directory: Directory to store ChromaDB data
+# collection_name: Name of the document collection
+# distance_metric: Similarity metric (cosine, l2, inner_product)
+
+# Chunking Configuration (chunking)
+# -----------------------------------
+# chunk_size: Maximum tokens per chunk
+# chunk_overlap: Number of tokens to overlap between chunks
+# method: Chunking method (size, paragraph)
+
+# Retrieval Configuration (retrieval)
+# ------------------------------------
+# top_k: Initial number of documents to retrieve
+# score_threshold: Minimum similarity score for semantic search (0.0-1.0)
+# max_searches: Maximum number of search iterations in agentic RAG
+
+# Evaluation Configuration (evaluation)
+# -------------------------------------
+# use_llm_judge: Enable LLM-based answer evaluation (true/false)
+# judge_model: Model to use for evaluation
+# evaluation_metrics: Metrics to evaluate (relevance, accuracy, completeness, clarity)
+
+# =====================================
+# Example Configurations
+# =====================================
+
+# Basic Configuration (Minimal Setup)
+# llm:
+#   model: gpt-4o-mini
+# embedding:
+#   model: text-embedding-3-small
+# reranker:
+#   method: hybrid
+# vector_db:
+#   persist_directory: ./chroma_db
+# chunking:
+#   method: paragraph
+
+# High-Quality Configuration (More Accurate)
+# llm:
+#   model: gpt-4o
+#   temperature: 0.5
+#   max_tokens: 3000
+# embedding:
+#   model: text-embedding-3-large
+#   batch_size: 32
+# reranker:
+#   method: hybrid
+#   use_cross_encoder: true
+# retrieval:
+#   top_k: 15
+#   score_threshold: 0.6
+
+# Fast Configuration (Lower Resource Usage)
+# llm:
+#   model: gpt-3.5-turbo
+#   temperature: 0.8
+# embedding:
+#   batch_size: 16
+# reranker:
+#   method: score
+# retrieval:
+#   top_k: 5
+#   max_searches: 1
