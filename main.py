@@ -90,27 +90,69 @@ class RAGSystem:
     def build_vector_database(self, documents: list, rebuild: bool = False) -> None:
         if rebuild:
             self.vector_store.delete_collection()
+            print("Vector database cleared.")
         
         if self.vector_store.count_documents() > 0:
+            indexed_files: set = set(self.vector_store.get_indexed_files())
             print(f"Vector database already contains {self.vector_store.count_documents()} documents.")
-            print("Set rebuild=True to rebuild the database.")
-            return
+            print(f"Indexed files: {len(indexed_files)}")
+            
+            new_documents: list = []
+            for doc in documents:
+                file_path: str = doc.get('file_path', '')
+                if file_path not in indexed_files:
+                    new_documents.append(doc)
+            
+            if not new_documents:
+                print("All documents already indexed. No new documents to add.")
+                return
+            
+            print(f"Found {len(new_documents)} new documents to add.")
+            documents = new_documents
         
         print("Chunking documents...")
         chunks: list = self.text_chunker.chunk_documents(documents, method='paragraph')
         print(f"Created {len(chunks)} chunks.")
+        
+        MAX_CHARS: int = 30000
+        valid_chunks: list = []
+        skipped: int = 0
+        for chunk in chunks:
+            if len(chunk.content) > MAX_CHARS:
+                skipped += 1
+                continue
+            valid_chunks.append(chunk)
+        
+        if skipped > 0:
+            print(f"Skipped {skipped} chunks due to length (> {MAX_CHARS} chars)")
+        
+        chunks = valid_chunks
+        print(f"Processing {len(chunks)} valid chunks.")
         
         print("Generating embeddings and saving to vector store...")
         
         BATCH_SIZE: int = 10
         SAVE_BATCH: int = 500
         
+        MAX_INPUT_CHARS: int = 8000
+        
         for i in tqdm(range(0, len(chunks), BATCH_SIZE), desc="Processing"):
             batch_chunks: list = chunks[i:i + BATCH_SIZE]
-            batch_texts: list = [chunk.content for chunk in batch_chunks]
+            batch_texts: list = []
+            valid_chunk_indices: list = []
+            
+            for j, text in enumerate([chunk.content for chunk in batch_chunks]):
+                if len(text) <= MAX_INPUT_CHARS:
+                    batch_texts.append(text)
+                    valid_chunk_indices.append(j)
+            
+            if not batch_texts:
+                continue
             
             batch_embeddings: list = self.embeddings.embed_documents(batch_texts)
-            self.vector_store.add_documents(batch_chunks, batch_embeddings)
+            
+            valid_chunks: list = [batch_chunks[j] for j in valid_chunk_indices]
+            self.vector_store.add_documents(valid_chunks, batch_embeddings)
             
             del batch_texts
             del batch_embeddings

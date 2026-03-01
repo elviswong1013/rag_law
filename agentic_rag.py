@@ -163,28 +163,33 @@ class AgenticRAG:
         from langgraph.graph import StateGraph, END
         
         workflow = StateGraph(RAGState)
+        # Define the nodes of the RAG workflow graph
+        workflow.add_node("retrieve", self.retrieve_node)      # Retrieve relevant documents from vector store
+        workflow.add_node("rerank", self.rerank_node)          # Rerank retrieved documents by relevance
+        workflow.add_node("evaluate", self.evaluate_retrieval_node)  # Evaluate if retrieval is sufficient
+        workflow.add_node("generate", self.generate_answer_node)       # Generate final answer using LLM
+        workflow.add_node("refine_query", self.refine_query_node)      # Refine query for better retrieval
         
-        workflow.add_node("retrieve", self.retrieve_node)
-        workflow.add_node("rerank", self.rerank_node)
-        workflow.add_node("evaluate", self.evaluate_retrieval_node)
-        workflow.add_node("generate", self.generate_answer_node)
-        workflow.add_node("refine_query", self.refine_query_node)
-        
+        # Set the starting point of the workflow
         workflow.set_entry_point("retrieve")
         
+        # Define the linear flow between nodes
         workflow.add_edge("retrieve", "rerank")
         workflow.add_edge("rerank", "evaluate")
         
+        # Add conditional branching based on evaluation results
         workflow.add_conditional_edges(
             "evaluate",
             self.should_continue_node,
             {
-                "retrieve": "refine_query",
-                "generate": "generate"
+                "retrieve": "refine_query",  # Loop back to retrieve more docs
+                "generate": "generate"         # Proceed to generate answer
             }
         )
         
+        # Define the looping edge for query refinement
         workflow.add_edge("refine_query", "retrieve")
+        # Define the terminal edge ending the workflow
         workflow.add_edge("generate", END)
         
         return workflow.compile()

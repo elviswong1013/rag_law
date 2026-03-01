@@ -119,3 +119,28 @@ class VectorStore:
     
     def count_documents(self) -> int:
         return self.collection.count()
+    
+    def get_indexed_files(self) -> List[str]:
+        file_paths: List[str] = []
+        batch_size: int = 1000
+        offset: int = 0
+        
+        while True:
+            try:
+                results = self.collection.get(limit=batch_size, offset=offset)
+            except Exception:
+                break
+            
+            if not results or not results.get('metadatas') or len(results['metadatas']) == 0:
+                break
+                
+            for metadata in results['metadatas']:
+                if metadata and 'file_path' in metadata:
+                    file_paths.append(metadata['file_path'])
+            
+            offset += batch_size
+            
+            if offset > 100000:
+                break
+        
+        return list(set(file_paths))
